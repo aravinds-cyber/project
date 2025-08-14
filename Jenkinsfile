@@ -15,51 +15,49 @@ pipeline {
             }
         }
 
-        stage('Build & Push Frontend') {
+        stage('AWS Login & Docker Build/Push') {
             steps {
-                sh '''
-                echo "Logging in to ECR for frontend..."
-                aws ecr-public get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin public.ecr.aws
+                withCredentials([[
+                    $class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: 'aws-credentials-id-2' // Use your existing credential ID
+                ]]) {
+                    sh '''
+                    echo "Logging in to ECR..."
+                    aws ecr-public get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin public.ecr.aws
 
-                echo "Building frontend image..."
-                docker build -t $ECR_REPO_FRONTEND:latest ./frontend
+                    echo "Building and pushing frontend image..."
+                    docker build -t $ECR_REPO_FRONTEND:latest ./frontend
+                    docker push $ECR_REPO_FRONTEND:latest
 
-                echo "Pushing frontend image..."
-                docker push $ECR_REPO_FRONTEND:latest
-                '''
-            }
-        }
-
-        stage('Build & Push API') {
-            steps {
-                sh '''
-                echo "Logging in to ECR for API..."
-                aws ecr-public get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin public.ecr.aws
-
-                echo "Building API image..."
-                docker build -t $ECR_REPO_API:latest ./api
-
-                echo "Pushing API image..."
-                docker push $ECR_REPO_API:latest
-                '''
+                    echo "Building and pushing API image..."
+                    docker build -t $ECR_REPO_API:latest ./api
+                    docker push $ECR_REPO_API:latest
+                    '''
+                }
             }
         }
 
         stage('Deploy to EKS') {
             steps {
-                sh '''
-                echo "Updating kubeconfig..."
-                aws eks update-kubeconfig --region $AWS_REGION --name $EKS_CLUSTER
+                withCredentials([[
+                    $class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: 'aws-credentials-id-2' // Reuse same credential
+                ]]) {
+                    sh '''
+                    echo "Updating kubeconfig..."
+                    aws eks update-kubeconfig --region $AWS_REGION --name $EKS_CLUSTER
 
-                echo "Applying Kubernetes manifests..."
-                kubectl apply -f k8s/01-namespace.yaml
-                kubectl apply -f k8s/02-configmap-frontend.yaml
-                kubectl apply -f k8s/03-deployment-api.yaml
-                kubectl apply -f k8s/04-service-api.yaml
-                kubectl apply -f k8s/05-deployment-frontend.yaml
-                kubectl apply -f k8s/06-service-frontend.yaml
-                '''
+                    echo "Applying Kubernetes manifests..."
+                    kubectl apply -f k8s/01-namespace.yaml
+                    kubectl apply -f k8s/02-configmap-frontend.yaml
+                    kubectl apply -f k8s/03-deployment-api.yaml
+                    kubectl apply -f k8s/04-service-api.yaml
+                    kubectl apply -f k8s/05-deployment-frontend.yaml
+                    kubectl apply -f k8s/06-service-frontend.yaml
+                    '''
+                }
             }
         }
     }
 }
+
