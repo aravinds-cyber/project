@@ -7,7 +7,6 @@ pipeline {
         ECR_REPO_API      = "public.ecr.aws/h0k7k9z9/api"
         EKS_CLUSTER       = "kubernetes" // Change to your cluster name
         IMAGE_TAG         = "latest"
-        PATH              = "/usr/local/bin:${env.PATH}" // Ensure kubectl & aws are in PATH
     }
 
     stages {
@@ -19,12 +18,7 @@ pipeline {
 
         stage('AWS Login & Docker Build/Push') {
             steps {
-                withCredentials([[
-                    $class: 'AmazonWebServicesCredentialsBinding',
-                    credentialsId: 'aws-credentials-id-2',
-                    accessKeyVariable: 'AWS_ACCESS_KEY_ID',
-                    secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
-                ]]) {
+                withAWS(credentials: 'aws-credentials-id-2', region: "${AWS_REGION}") {
 
                     echo "Logging in to ECR..."
                     sh """
@@ -48,12 +42,7 @@ pipeline {
 
         stage('Deploy to EKS') {
             steps {
-                withCredentials([[
-                    $class: 'AmazonWebServicesCredentialsBinding',
-                    credentialsId: 'aws-credentials-id-2',
-                    accessKeyVariable: 'AWS_ACCESS_KEY_ID',
-                    secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
-                ]]) {
+                withAWS(credentials: 'aws-credentials-id-2', region: "${AWS_REGION}") {
 
                     echo "Updating kubeconfig..."
                     sh """
@@ -83,6 +72,7 @@ pipeline {
         }
     }
 }
+
 
 
 
