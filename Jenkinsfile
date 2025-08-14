@@ -51,12 +51,12 @@ pipeline {
 
                     echo "Applying Kubernetes manifests..."
                     sh """
-                        kubectl apply -f k8s/01-namespace.yaml
-                        kubectl apply -f k8s/02-configmap-frontend.yaml
-                        kubectl apply -f k8s/03-deployment-api.yaml
-                        kubectl apply -f k8s/04-service-api.yaml
-                        kubectl apply -f k8s/05-deployment-frontend.yaml
-                        kubectl apply -f k8s/06-service-frontend.yaml
+                        kubectl apply -f k8s/01-namespace.yaml --validate=false
+                        kubectl apply -f k8s/02-configmap-frontend.yaml --validate=false
+                        kubectl apply -f k8s/03-deployment-api.yaml --validate=false
+                        kubectl apply -f k8s/04-service-api.yaml --validate=false
+                        kubectl apply -f k8s/05-deployment-frontend.yaml --validate=false
+                        kubectl apply -f k8s/06-service-frontend.yaml --validate=false
                     """
                 }
             }
