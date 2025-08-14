@@ -5,7 +5,6 @@ pipeline {
         AWS_REGION        = "us-east-1" // Change to your AWS region
         ECR_REPO_FRONTEND = "public.ecr.aws/h0k7k9z9/frontend"
         ECR_REPO_API      = "public.ecr.aws/h0k7k9z9/api"
-        EKS_CLUSTER       = "kubernetes" // Change to your cluster name
         IMAGE_TAG         = "latest"
     }
 
@@ -19,7 +18,6 @@ pipeline {
         stage('AWS Login & Docker Build/Push') {
             steps {
                 withAWS(credentials: 'aws-credentials-id-2', region: "${AWS_REGION}") {
-
                     echo "Logging in to ECR..."
                     sh """
                         aws ecr-public get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin public.ecr.aws
@@ -42,27 +40,19 @@ pipeline {
 
         stage('Deploy to EKS') {
             steps {
-                withAWS(credentials: 'aws-credentials-id-2', region: "${AWS_REGION}") {
-
-                    echo "Updating kubeconfig..."
-                    sh """
-                        aws eks update-kubeconfig --region ${AWS_REGION} --name ${EKS_CLUSTER}
-                    """
-
+                withCredentials([file(credentialsId: 'eks-kubeconfig', variable: 'KUBECONFIG')]) {
                     echo "Checking EKS nodes..."
-                    sh """
-                        kubectl get nodes
-                    """
+                    sh 'kubectl get nodes'
 
                     echo "Applying Kubernetes manifests..."
-                    sh """
+                    sh '''
                         kubectl apply -f k8s/01-namespace.yaml --validate=false
                         kubectl apply -f k8s/02-configmap-frontend.yaml --validate=false
                         kubectl apply -f k8s/03-deployment-api.yaml --validate=false
                         kubectl apply -f k8s/04-service-api.yaml --validate=false
                         kubectl apply -f k8s/05-deployment-frontend.yaml --validate=false
                         kubectl apply -f k8s/06-service-frontend.yaml --validate=false
-                    """
+                    '''
                 }
             }
         }
@@ -77,6 +67,7 @@ pipeline {
         }
     }
 }
+
 
 
 
