@@ -49,6 +49,11 @@ pipeline {
                         aws eks update-kubeconfig --region ${AWS_REGION} --name ${EKS_CLUSTER}
                     """
 
+                    echo "Checking EKS nodes..."
+                    sh """
+                        kubectl get nodes
+                    """
+
                     echo "Applying Kubernetes manifests..."
                     sh """
                         kubectl apply -f k8s/01-namespace.yaml --validate=false
@@ -72,6 +77,7 @@ pipeline {
         }
     }
 }
+
 
 
 
