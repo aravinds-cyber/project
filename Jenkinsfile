@@ -7,6 +7,7 @@ pipeline {
         ECR_REPO_API      = "public.ecr.aws/h0k7k9z9/api"
         EKS_CLUSTER       = "kubernetes" // Change to your cluster name
         IMAGE_TAG         = "latest"
+        PATH              = "/usr/local/bin:${env.PATH}" // Ensure kubectl & aws are in PATH
     }
 
     stages {
@@ -56,13 +57,11 @@ pipeline {
 
                     echo "Updating kubeconfig..."
                     sh """
-                        export PATH=$PATH:/usr/local/bin
                         aws eks update-kubeconfig --region ${AWS_REGION} --name ${EKS_CLUSTER}
                     """
 
                     echo "Applying Kubernetes manifests..."
                     sh """
-                        export PATH=$PATH:/usr/local/bin
                         kubectl apply -f k8s/01-namespace.yaml
                         kubectl apply -f k8s/02-configmap-frontend.yaml
                         kubectl apply -f k8s/03-deployment-api.yaml
@@ -84,6 +83,7 @@ pipeline {
         }
     }
 }
+
 
 
 
