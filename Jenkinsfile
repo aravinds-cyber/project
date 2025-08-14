@@ -18,7 +18,12 @@ pipeline {
 
         stage('AWS Login & Docker Build/Push') {
             steps {
-                withAWS(credentials: 'aws-credentials-id-2', region: "${AWS_REGION}") {
+                withCredentials([[
+                    $class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: 'aws-credentials-id-2',
+                    accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                    secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
+                ]]) {
 
                     echo "Logging in to ECR..."
                     sh """
@@ -42,15 +47,22 @@ pipeline {
 
         stage('Deploy to EKS') {
             steps {
-                withAWS(credentials: 'aws-credentials-id-2', region: "${AWS_REGION}") {
+                withCredentials([[
+                    $class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: 'aws-credentials-id-2',
+                    accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                    secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
+                ]]) {
 
                     echo "Updating kubeconfig..."
                     sh """
+                        export PATH=$PATH:/usr/local/bin
                         aws eks update-kubeconfig --region ${AWS_REGION} --name ${EKS_CLUSTER}
                     """
 
                     echo "Applying Kubernetes manifests..."
                     sh """
+                        export PATH=$PATH:/usr/local/bin
                         kubectl apply -f k8s/01-namespace.yaml
                         kubectl apply -f k8s/02-configmap-frontend.yaml
                         kubectl apply -f k8s/03-deployment-api.yaml
@@ -72,5 +84,6 @@ pipeline {
         }
     }
 }
+
 
 
