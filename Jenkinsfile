@@ -2,9 +2,10 @@ pipeline {
     agent any
 
     environment {
-        AWS_REGION = "us-east-1"
-        ECR_REPO = "public.ecr.aws/h0k7k9z9/api"
-        ECR_REPO = "public.ecr.aws/h0k7k9z9/frontend"
+        AWS_REGION        = "us-east-1" // Change to your AWS region
+        ECR_REPO_FRONTEND = "public.ecr.aws/h0k7k9z9/frontend"
+        ECR_REPO_API      = "public.ecr.aws/h0k7k9z9/api"
+        EKS_CLUSTER       = "kubernetes" // Change to your cluster name
     }
 
     stages {
@@ -14,24 +15,32 @@ pipeline {
             }
         }
 
-        stage('Build & Push API Image') {
+        stage('Build & Push Frontend') {
             steps {
                 sh '''
-                cd api
-                docker build -t $ECR_REPO/api:latest .
-                aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REPO
-                docker push $ECR_REPO/api:latest
+                echo "Logging in to ECR for frontend..."
+                aws ecr-public get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin public.ecr.aws
+
+                echo "Building frontend image..."
+                docker build -t $ECR_REPO_FRONTEND:latest ./frontend
+
+                echo "Pushing frontend image..."
+                docker push $ECR_REPO_FRONTEND:latest
                 '''
             }
         }
 
-        stage('Build & Push Frontend Image') {
+        stage('Build & Push API') {
             steps {
                 sh '''
-                cd frontend
-                docker build -t $ECR_REPO/frontend:latest .
-                aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REPO
-                docker push $ECR_REPO/frontend:latest
+                echo "Logging in to ECR for API..."
+                aws ecr-public get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin public.ecr.aws
+
+                echo "Building API image..."
+                docker build -t $ECR_REPO_API:latest ./api
+
+                echo "Pushing API image..."
+                docker push $ECR_REPO_API:latest
                 '''
             }
         }
@@ -39,7 +48,10 @@ pipeline {
         stage('Deploy to EKS') {
             steps {
                 sh '''
-                aws eks update-kubeconfig --region $AWS_REGION --name kubernetes
+                echo "Updating kubeconfig..."
+                aws eks update-kubeconfig --region $AWS_REGION --name $EKS_CLUSTER
+
+                echo "Applying Kubernetes manifests..."
                 kubectl apply -f k8s/01-namespace.yaml
                 kubectl apply -f k8s/02-configmap-frontend.yaml
                 kubectl apply -f k8s/03-deployment-api.yaml
